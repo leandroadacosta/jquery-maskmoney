@@ -29,18 +29,64 @@
 * @Release: 2011-11-01
 */
 ;(function($) {
+	
+	var setSymbol = function(v, settings) {
+		if (settings.showSymbol) {
+			if (v.substr(0, settings.symbol.length) != settings.symbol) return settings.symbol+v;
+		}
+		return v;
+	};
+	
+	var maskValue = function(v, settings) {
+		v = v.replace(settings.symbol,'');
+
+		var strCheck = '0123456789';
+		var len = v.length;
+		var a = '', t = '', neg='';
+
+		if(len!=0 && v.charAt(0)=='-'){
+			v = v.replace('-','');
+			if(settings.allowNegative){
+				neg = '-';
+			}
+		}
+
+		if (len==0) {
+			if (!settings.defaultZero) return t;
+			t = '0.00';
+		}
+
+		for (var i = 0; i<len; i++) {
+			if ((v.charAt(i)!='0') && (v.charAt(i)!=settings.decimal)) break;
+		}
+
+		for (; i<len; i++) {
+			if (strCheck.indexOf(v.charAt(i))!=-1) a+= v.charAt(i);
+		}
+
+		var n = parseFloat(a);
+		n = isNaN(n) ? 0 : n/Math.pow(10,settings.precision);
+		t = n.toFixed(settings.precision);
+
+		i = settings.precision == 0 ? 0 : 1;
+		var p, d = (t=t.split('.'))[i].substr(0,settings.precision);
+		for (p = (t=t[0]).length; (p-=3)>=1;) {
+			t = t.substr(0,p)+settings.thousands+t.substr(p);
+		}
+
+		return (settings.precision>0)
+			? setSymbol(neg+t+settings.decimal+d+Array((settings.precision+1)-d.length).join(0), settings)
+			: setSymbol(neg+t, settings);
+	};
+	
+	$.maskMoney = function(v, settings) {
+		settings = $.extend({}, $.fn.maskMoney.defaults, settings);
+		
+		return maskValue(String(v), settings);
+	};
+	
 	$.fn.maskMoney = function(settings) {
-		settings = $.extend({
-			symbol: 'US$',
-			showSymbol: false,
-			symbolStay: false,
-			thousands: ',',
-			decimal: '.',
-			precision: 2,
-			defaultZero: true,
-			allowZero: false,
-			allowNegative: false
-		}, settings);
+		settings = $.extend({}, $.fn.maskMoney.defaults, settings);
 
 		return this.each(function() {
 			var input = $(this);
@@ -151,9 +197,9 @@
 				if (input.val()==mask) {
 					input.val('');
 				} else if (input.val()==''&&settings.defaultZero) {
-					input.val(setSymbol(mask));
+					input.val(setSymbol(mask, settings));
 				} else {
-					input.val(setSymbol(input.val()));
+					input.val(setSymbol(input.val(), settings));
 				}
 				if (this.createTextRange) {
 					var textRange = this.createTextRange();
@@ -167,13 +213,13 @@
 					keypressEvent(e);
 				}
 
-				if (input.val()==''||input.val()==setSymbol(getDefaultMask())||input.val()==settings.symbol) {
+				if (input.val()==''||input.val()==setSymbol(getDefaultMask(), settings)||input.val()==settings.symbol) {
 					if(!settings.allowZero) input.val('');
 					else if (!settings.symbolStay) input.val(getDefaultMask());
-					else input.val(setSymbol(getDefaultMask()));
+					else input.val(setSymbol(getDefaultMask(), settings));
 				} else {
 					if (!settings.symbolStay) input.val(input.val().replace(settings.symbol,''));
-					else if (settings.symbolStay&&input.val()==settings.symbol) input.val(setSymbol(getDefaultMask()));
+					else if (settings.symbolStay&&input.val()==settings.symbol) input.val(setSymbol(getDefaultMask(), settings));
 				}
 			}
 
@@ -187,69 +233,20 @@
 
 			function maskAndPosition(x, startPos) {
 				var originalLen = input.val().length;
-				input.val(maskValue(x.value));
+				input.val(maskValue(x.value, settings));
 				var newLen = input.val().length;
 				startPos = startPos - (originalLen - newLen);
 				input.setCursorPosition(startPos);
 			}
 
-			function maskValue(v) {
-				v = v.replace(settings.symbol,'');
-
-				var strCheck = '0123456789';
-				var len = v.length;
-				var a = '', t = '', neg='';
-
-				if(len!=0 && v.charAt(0)=='-'){
-					v = v.replace('-','');
-					if(settings.allowNegative){
-						neg = '-';
-					}
-				}
-
-				if (len==0) {
-					if (!settings.defaultZero) return t;
-					t = '0.00';
-				}
-
-				for (var i = 0; i<len; i++) {
-					if ((v.charAt(i)!='0') && (v.charAt(i)!=settings.decimal)) break;
-				}
-
-				for (; i<len; i++) {
-					if (strCheck.indexOf(v.charAt(i))!=-1) a+= v.charAt(i);
-				}
-
-				var n = parseFloat(a);
-				n = isNaN(n) ? 0 : n/Math.pow(10,settings.precision);
-				t = n.toFixed(settings.precision);
-
-				i = settings.precision == 0 ? 0 : 1;
-				var p, d = (t=t.split('.'))[i].substr(0,settings.precision);
-				for (p = (t=t[0]).length; (p-=3)>=1;) {
-					t = t.substr(0,p)+settings.thousands+t.substr(p);
-				}
-
-				return (settings.precision>0)
-					? setSymbol(neg+t+settings.decimal+d+Array((settings.precision+1)-d.length).join(0))
-					: setSymbol(neg+t);
-			}
-
 			function mask() {
 				var value = input.val();
-				input.val(maskValue(value));
+				input.val(maskValue(value, settings));
 			}
 
 			function getDefaultMask() {
 				var n = parseFloat('0')/Math.pow(10,settings.precision);
 				return (n.toFixed(settings.precision)).replace(new RegExp('\\.','g'),settings.decimal);
-			}
-
-			function setSymbol(v) {
-				if (settings.showSymbol) {
-					if (v.substr(0, settings.symbol.length) != settings.symbol) return settings.symbol+v;
-				}
-				return v;
 			}
 
 			function changeSign(i){
@@ -280,8 +277,22 @@
 					this.removeEventListener('input',blurEvent,false);
 				}
 			});
+			
+			input.mask();
 		});
 	}
+	
+	$.fn.maskMoney.defaults = {
+		symbol: 'US$',
+		showSymbol: false,
+		symbolStay: false,
+		thousands: ',',
+		decimal: '.',
+		precision: 2,
+		defaultZero: true,
+		allowZero: false,
+		allowNegative: false
+	};
 
 	$.fn.unmaskMoney=function() {
 		return this.trigger('unmaskMoney');
