@@ -362,4 +362,16 @@
 			end: end
 		};
 	}
+	
+	$.fn.getMoneyWithoutMask = function(){
+		var field = $(this).val();
+		var result = "";
+
+		for(var f in field)
+		{
+			if(!isNaN(field[f]) || field[f] == "-") result += field[f];
+		}
+
+		return result;
+	};
 })(jQuery);
